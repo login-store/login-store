@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://login-store.github.io/login-store/sitemap.xml
