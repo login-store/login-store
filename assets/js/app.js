@@ -152,7 +152,6 @@ function render(){
   var app=$('#app');
   app.className=admin?'pad-abar':'';
   app.innerHTML=h;
-  {var cp=PAGES.filter(function(p){return p[0]===page})[0];document.title=(page==='home'?s.name+' | '+s.tagline:cp[1]+' | '+s.name)}
 }
 
 /* cart */
