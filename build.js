@@ -34,6 +34,30 @@ const digits = (s) => String(s || '').replace(/\D/g, '');
 const absUrl = (u) => (!u || /^data:/i.test(u)) ? null : (/^https?:\/\//i.test(u) ? u : SITE + String(u).replace(/^\//, ''));
 
 const cats = D.categories || [];
+
+/* صور المنتجات المرفوعة من لوحة التحكم تُحفظ داخل data.js كنص base64.
+   نستخرجها إلى ملفات حقيقية حتى يستطيع جوجل قراءتها في البيانات المنظّمة. */
+const IMG_DIR = 'assets/img/products';
+const IMG = {};
+const keep = new Set();
+D.products.forEach((p) => {
+  const m = /^data:image\/(png|jpe?g|webp|gif);base64,(.+)$/i.exec(p.img || '');
+  if (m) {
+    const ext = m[1].toLowerCase().replace('jpeg', 'jpg');
+    const rel = `${IMG_DIR}/${String(p.id).replace(/[^a-z0-9_-]/gi, '')}.${ext}`;
+    const abs = path.join(ROOT, rel);
+    const buf = Buffer.from(m[2], 'base64');
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    if (!fs.existsSync(abs) || !fs.readFileSync(abs).equals(buf)) fs.writeFileSync(abs, buf);
+    IMG[p.id] = rel;
+    keep.add(path.basename(rel));
+  } else {
+    IMG[p.id] = p.img || null;
+  }
+});
+try {
+  fs.readdirSync(path.join(ROOT, IMG_DIR)).forEach((f) => { if (!keep.has(f)) fs.unlinkSync(path.join(ROOT, IMG_DIR, f)); });
+} catch (e) { /* المجلد غير موجود: لا منتجات بصور */ }
 const inStock = D.products.filter((p) => p.stock);
 const catNames = cats.map((c) => c.name);
 const top3 = joinAr(catNames.slice(0, 3));
@@ -63,7 +87,8 @@ const storeLd = () => {
 const productLd = (p) => {
   const o = { '@type': 'Product', name: p.name, category: (cats.find((c) => c.id === p.cat) || {}).name, brand: { '@type': 'Brand', name }, offers: { '@type': 'Offer', url: SITE + 'shop.html', price: String(Number(p.price) || 0), priceCurrency: 'EGP', itemCondition: 'https://schema.org/NewCondition', availability: p.stock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock' } };
   if (p.desc) o.description = p.desc;
-  const img = absUrl(p.img);
+  o.sku = String(p.id);
+  const img = absUrl(IMG[p.id]);
   if (img) o.image = img;
   return o;
 };
@@ -71,7 +96,7 @@ const productLd = (p) => {
 /* ---------- أجزاء مشتركة للمحتوى الثابت ---------- */
 const nav = `<header><a href="index.html">${esc(name)}</a><nav aria-label="القائمة الرئيسية"><a href="index.html">الرئيسية</a> <a href="shop.html">المنتجات</a> <a href="why.html">لماذا نحن</a> <a href="faq.html">أسئلة شائعة</a> <a href="contact.html">تواصل معنا</a></nav></header>`;
 const foot = `<footer><p>${esc(name)} - ${esc(S.tagline)}</p><p>© ${new Date().getFullYear()} ${esc(name)}. جميع الحقوق محفوظة.</p></footer>`;
-const productLi = (p) => `<li><h3>${esc(p.name)}</h3>${p.desc ? `<p>${esc(p.desc)}</p>` : ''}<p>السعر: ${money(p.price)}${Number(p.old) > Number(p.price) ? ` (قبل الخصم ${money(p.old)})` : ''}</p><p>${p.stock ? 'متوفر' : 'غير متوفر حاليًا'}</p></li>`;
+const productLi = (p) => `<li>${IMG[p.id] ? `<img src="${esc(IMG[p.id])}" alt="${esc(p.name)}" width="320" height="320" loading="lazy">` : ''}<h3>${esc(p.name)}</h3>${p.desc ? `<p>${esc(p.desc)}</p>` : ''}<p>السعر: ${money(p.price)}${Number(p.old) > Number(p.price) ? ` (قبل الخصم ${money(p.old)})` : ''}</p><p>${p.stock ? 'متوفر' : 'غير متوفر حاليًا'}</p></li>`;
 const features = () => (D.features || []).map((f) => `<li><h3>${esc(f.t)}</h3><p>${esc(f.d)}</p></li>`).join('');
 
 /* ---------- الصفحات ---------- */
