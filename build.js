@@ -116,7 +116,7 @@ pages.push({
 pages.push({
   file: 'shop.html', page: 'shop', url: SITE + 'shop.html',
   title: cut(`${top3} للموبايل | ${name}`, 68),
-  desc: cut(`تسوّق ${allCats} وإكسسوارات الهاتف من ${name} بأسعار مناسبة. اطلب عبر واتساب والدفع عند الاستلام.`, 155),
+  desc: cut(`تسوّق ${allCats} وإكسسوارات الهاتف من ${name} بأسعار مناسبة. اطلب أونلاين والدفع عند الاستلام.`, 155),
   body: `${nav}<main><h1>المنتجات</h1><p>تصفّح كل إكسسوارات الهاتف حسب القسم.</p>${cats.map((c) => {
     const ps = D.products.filter((p) => p.cat === c.id);
     return ps.length ? `<section><h2>${esc(c.name)}</h2><ul>${ps.map(productLi).join('')}</ul></section>` : '';
@@ -128,7 +128,7 @@ pages.push({
   file: 'why.html', page: 'why', url: SITE + 'why.html',
   title: cut(`لماذا ${name}؟ منتجات مختارة وشحن ودفع عند الاستلام`, 68),
   desc: cut(`${(D.features || []).map((f) => f.t).join('، ')}. تعرّف على ${name} وطريقة الطلب.`, 155),
-  body: `${nav}<main><h1>لماذا ${esc(name)}؟</h1><ul>${features()}</ul><h2>كيف تطلب؟</h2><ol><li>اختر منتجاتك وأضفها إلى السلة.</li><li>اكتب بياناتك وأرسل الطلب على واتساب.</li><li>نؤكد معك الطلب ونوصّله، وتدفع عند الاستلام.</li></ol></main>${foot}`,
+  body: `${nav}<main><h1>لماذا ${esc(name)}؟</h1><ul>${features()}</ul><h2>كيف تطلب؟</h2><ol><li>اختر منتجاتك وأضفها إلى السلة.</li><li>اكتب بياناتك وأكّد الطلب.</li><li>نتصل بك لتأكيد الطلب ونوصّله، وتدفع عند الاستلام.</li></ol></main>${foot}`,
   ld: [crumb('لماذا نحن', 'why.html')],
 });
 

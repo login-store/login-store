@@ -21,7 +21,7 @@ var D=null,admin=false,canEdit=false,artifactApi=null,assetsApi=null;
 var ghMode=false,publishMsg='',ghCfg={owner:'',repo:'',branch:'main',path:'assets/js/data.js',token:''};
 try{var gs=JSON.parse(localStorage.getItem('ls-gh')||'null');if(gs)ghCfg=Object.assign(ghCfg,gs)}catch(e){}
 var cart={},filter='all',q='',dirty=false,layer=null,tab='products',editing=null,confirmDel=null,busy=false;
-var cust={name:'',phone:'',addr:'',note:''};
+var cust={name:'',phone:'',addr:'',note:'',hp:''};
 try{cart=JSON.parse(localStorage.getItem('ls-cart')||'{}')||{}}catch(e){cart={}}
 var saveCart=function(){try{localStorage.setItem('ls-cart',JSON.stringify(cart))}catch(e){}};
 var cur=function(){return admin&&D?D:S};
@@ -115,7 +115,7 @@ function pageHTML(c,s,wa){
   }else if(page==='why'){
     h+=pHead('لماذا '+s.name+'؟','نهتم بجودة المنتج وسهولة الطلب ووضوح السياسات.');
     h+='<section><div class="wrap"><div class="why">'+c.features.map(function(f){return '<div><h3>'+esc(f.t)+'</h3><p>'+esc(f.d)+'</p></div>'}).join('')+'</div></div></section>';
-    h+='<section><div class="wrap"><div class="sh"><h2>كيف تطلب؟</h2></div><ol class="steps"><li><b>اختر منتجاتك</b><span>أضف ما يعجبك إلى السلة.</span></li><li><b>أرسل الطلب على واتساب</b><span>اكتب بياناتك واضغط إرسال، فتصلنا رسالة جاهزة.</span></li><li><b>استلم وادفع</b><span>نؤكد معك الطلب ونوصّله، وتدفع عند الاستلام.</span></li></ol></div></section>';
+    h+='<section><div class="wrap"><div class="sh"><h2>كيف تطلب؟</h2></div><ol class="steps"><li><b>اختر منتجاتك</b><span>أضف ما يعجبك إلى السلة.</span></li><li><b>أكّد طلبك</b><span>اكتب بياناتك واضغط تأكيد الطلب، فيصلنا طلبك مباشرة.</span></li><li><b>استلم وادفع</b><span>نتصل بك لتأكيد الطلب ونوصّله، وتدفع عند الاستلام.</span></li></ol></div></section>';
   }else if(page==='faq'){
     h+=pHead('أسئلة شائعة','إجابات سريعة عن الطلب والدفع والتوصيل.');
     h+='<section><div class="wrap">'+((c.faq||[]).length?'<div class="faq">'+c.faq.map(function(f){return '<details><summary>'+esc(f.q)+'</summary><p>'+esc(f.a)+'</p></details>'}).join('')+'</div>':'<p class="empty">لا توجد أسئلة بعد.</p>')+'</div></section>';
@@ -124,7 +124,7 @@ function pageHTML(c,s,wa){
     h+=pHead('تواصل معنا','يسعدنا الرد على استفساراتك ومساعدتك في اختيار المنتج المناسب.');
     h+='<section><div class="wrap"><div class="contact"><div class="cbox">'+
       (hasContact?contactRow('واتساب',s.whatsapp?'+'+wa:'',true)+contactRow('الهاتف',s.phone,true)+contactRow('البريد الإلكتروني',s.email,true)+contactRow('العنوان',s.address,false)+contactRow('مواعيد العمل',s.hours,false):'<p class="empty">بيانات التواصل لم تُضبط بعد.</p>')+
-      '</div><div class="cbox"><h3 style="font-size:20px;margin-bottom:6px">اطلب بسهولة</h3><p style="color:var(--muted)">أضف المنتجات إلى السلة، اكتب بياناتك، وأرسل الطلب لنا على واتساب. نؤكد معك الطلب ونرتب التوصيل، والدفع عند الاستلام.</p>'+
+      '</div><div class="cbox"><h3 style="font-size:20px;margin-bottom:6px">اطلب بسهولة</h3><p style="color:var(--muted)">أضف المنتجات إلى السلة، اكتب بياناتك، وأكّد الطلب. نتصل بك لتأكيده ونرتب التوصيل، والدفع عند الاستلام.</p>'+
       (wa?'<a class="btn cta" style="margin-top:16px" target="_blank" rel="noopener" href="https://wa.me/'+wa+'">'+ui('wa')+'<span>راسلنا على واتساب</span></a>':'')+'</div></div></div></section>';
   }
   return h;
@@ -148,7 +148,7 @@ function render(){
   var soc=[['facebook','فيسبوك'],['instagram','إنستغرام'],['tiktok','تيك توك']].filter(function(x){return /^https?:\/\//i.test(s[x[0]]||'')}).map(function(x){return '<a href="'+esc(s[x[0]])+'" target="_blank" rel="noopener">'+x[1]+'</a>'}).join('');
   h+='<footer><div class="wrap fgrid"><div class="fcol"><div class="fl"><img src="'+LOGO_FULL+'" alt="" width="92"><div><b>'+esc(s.name)+'</b><br><small>'+esc(s.tagline)+'</small></div></div></div><div class="fcol"><h4>روابط سريعة</h4>'+links.replace(/ aria-current="page"/g,'')+'</div><div class="fcol"><h4>تابعنا</h4>'+(soc||'<small>لم تُضف حسابات بعد</small>')+'</div></div><div class="wrap fcopy"><small>© '+new Date().getFullYear()+' '+esc(s.name)+'. جميع الحقوق محفوظة.</small></div></footer>';
   if(wa)h+='<a class="fab" target="_blank" rel="noopener" href="https://wa.me/'+wa+'" aria-label="تحدث معنا على واتساب">'+ui('wa')+'<span>واتساب</span></a>';
-  if(admin)h+='<div class="abar"><div class="in"><span class="st">وضع التعديل · <span id="dirtyTag">'+(dirty?'تغييرات غير منشورة':'لا تغييرات')+'</span></span><button class="btn" data-act="new-p">'+ui('plus')+'<span>منتج جديد</span></button><button class="btn" data-act="admin-open">إعدادات الموقع</button><button class="btn" data-act="admin-exit">خروج</button><button class="btn cta" data-act="download-data">تنزيل data.js</button><button class="btn cta" data-act="publish">حفظ ونشر</button></div></div>';
+  if(admin)h+='<div class="abar"><div class="in"><span class="st">وضع التعديل · <span id="dirtyTag">'+(dirty?'تغييرات غير منشورة':'لا تغييرات')+'</span></span><button class="btn" data-act="new-p">'+ui('plus')+'<span>منتج جديد</span></button><a class="btn" href="admin.html">الطلبات</a><button class="btn" data-act="admin-open">إعدادات الموقع</button><button class="btn" data-act="admin-exit">خروج</button><button class="btn cta" data-act="download-data">تنزيل data.js</button><button class="btn cta" data-act="publish">حفظ ونشر</button></div></div>';
   var app=$('#app');
   app.className=admin?'pad-abar':'';
   app.innerHTML=h;
@@ -169,6 +169,45 @@ function waLink(){
   lines.push('','الإجمالي: '+money(total),'الدفع: عند الاستلام');
   return 'https://wa.me/'+waNum(s.whatsapp)+'?text='+encodeURIComponent(lines.join('\n'));
 }
+/* ===== حفظ الطلب في قاعدة بيانات Firestore (عبر REST) ===== */
+function fbCfg(){var st=S.settings||{};var k=String(st.firebaseApiKey||'').trim(),pid=String(st.firebaseProjectId||'').trim();return k&&pid?{key:k,pid:pid}:null}
+function latinDigits(str){return String(str||'').replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d)}).replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)})}
+function fsVal(v){
+  if(typeof v==='string')return {stringValue:v};
+  if(typeof v==='number')return Number.isInteger(v)?{integerValue:String(v)}:{doubleValue:v};
+  if(Array.isArray(v))return {arrayValue:{values:v.map(fsVal)}};
+  if(v&&v.__ts)return {timestampValue:v.__ts};
+  if(v&&typeof v==='object'){var f={};Object.keys(v).forEach(function(k){f[k]=fsVal(v[k])});return {mapValue:{fields:f}}}
+  return {nullValue:null};
+}
+var doneNo='',ordering=false;
+function placeOrder(){
+  if(ordering)return;
+  var f=fbCfg(),items=cartItems();
+  if(!f){toast('استقبال الطلبات غير مفعّل بعد.');return}
+  if(!items.length){toast('السلة فارغة');return}
+  if(cust.hp)return;
+  var name=cust.name.trim(),phone=latinDigits(cust.phone).replace(/[^\d+]/g,''),addr=cust.addr.trim(),note=cust.note.trim();
+  var dg=phone.replace(/\D/g,'');
+  if(name.length<2){toast('اكتب اسمك');return}
+  if(dg.length<8||dg.length>15){toast('اكتب رقم هاتف صحيح');return}
+  if(addr.length<5){toast('اكتب العنوان بالتفصيل');return}
+  try{if(Date.now()-Number(localStorage.getItem('ls-last-order')||0)<30000){toast('تم إرسال طلب قبل لحظات. انتظر قليلًا.');return}}catch(e){}
+  var d=new Date(),no='LS-'+String(d.getFullYear()).slice(2)+('0'+(d.getMonth()+1)).slice(-2)+('0'+d.getDate()).slice(-2)+'-'+Math.floor(1000+Math.random()*9000);
+  var total=items.reduce(function(a,x){return a+x.p.price*x.n},0);
+  var order={orderNo:no,createdAt:{__ts:d.toISOString()},name:name,phone:phone,address:addr,items:items.map(function(x){return {id:String(x.p.id),name:String(x.p.name),price:Number(x.p.price),qty:x.n}}),total:total,status:'new'};
+  if(note)order.note=note;
+  var fields={};Object.keys(order).forEach(function(k){fields[k]=fsVal(order[k])});
+  ordering=true;renderLayer();
+  fetch('https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(f.pid)+'/databases/(default)/documents/orders?documentId='+encodeURIComponent(no)+'&key='+encodeURIComponent(f.key),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fields:fields})}).then(function(r){
+    if(!r.ok)throw new Error('http '+r.status);
+    cart={};saveCart();try{localStorage.setItem('ls-last-order',String(Date.now()))}catch(e){}
+    cust.note='';doneNo=no;ordering=false;layer='done';renderLayer();render();
+  }).catch(function(e){ordering=false;renderLayer();toast('تعذّر إرسال الطلب. حاول مرة أخرى بعد قليل.');try{console.warn(e)}catch(x){}});
+}
+function doneHTML(){
+  return '<div class="sheet"><div class="scrim" data-act="close-layer"></div><div class="panel done" role="dialog" aria-modal="true" aria-label="تم استلام الطلب"><div class="doneb"><div class="doneic">'+ui('check')+'</div><h2>تم استلام طلبك</h2><p>رقم الطلب</p><b class="dno">'+esc(doneNo)+'</b><p>سنتصل بك على رقم الهاتف الذي كتبته لتأكيد الطلب. الدفع عند الاستلام.</p><button class="btn cta" data-act="close-layer">متابعة التسوق</button></div></div></div>';
+}
 function cartHTML(){
   var items=cartItems(),s=cur().settings;
   var total=items.reduce(function(a,x){return a+x.p.price*x.n},0);
@@ -180,11 +219,12 @@ function cartHTML(){
   var form='<div class="co"><div class="fld"><label for="c-name">الاسم</label><input id="c-name" data-cust="name" value="'+esc(cust.name)+'" autocomplete="name"></div>'+
     '<div class="fld"><label for="c-phone">رقم الهاتف</label><input id="c-phone" data-cust="phone" type="tel" inputmode="tel" value="'+esc(cust.phone)+'" autocomplete="tel"></div>'+
     '<div class="fld"><label for="c-addr">العنوان بالتفصيل</label><textarea id="c-addr" data-cust="addr">'+esc(cust.addr)+'</textarea></div>'+
-    '<div class="fld"><label for="c-note">ملاحظات (اختياري)</label><input id="c-note" data-cust="note" value="'+esc(cust.note)+'"></div></div>';
-  var send=waNum(s.whatsapp)?'<a id="wa" class="btn cta block" target="_blank" rel="noopener" href="'+esc(waLink())+'">'+ui('wa')+'<span>إرسال الطلب عبر واتساب</span></a>':'<button class="btn block" disabled>رقم واتساب المتجر لم يُضبط بعد</button>';
+    '<div class="fld"><label for="c-note">ملاحظات (اختياري)</label><input id="c-note" data-cust="note" value="'+esc(cust.note)+'"></div>'+
+    '<div class="hp" aria-hidden="true"><label for="c-hp">اترك هذا الحقل فارغًا</label><input id="c-hp" data-cust="hp" tabindex="-1" autocomplete="off"></div></div>';
+  var send=fbCfg()?'<button class="btn cta block" data-act="place-order"'+(ordering?' disabled':'')+'>'+(ordering?'جارٍ إرسال الطلب...':'تأكيد الطلب')+'</button>':(waNum(s.whatsapp)?'<a id="wa" class="btn cta block" target="_blank" rel="noopener" href="'+esc(waLink())+'">'+ui('wa')+'<span>إرسال الطلب عبر واتساب</span></a>':'<button class="btn block" disabled>استقبال الطلبات غير مفعّل بعد</button>');
   return '<div class="scrim" data-act="close-layer"></div><aside class="drawer" role="dialog" aria-modal="true" aria-label="سلة المشتريات"><div class="dhead"><h2>سلة المشتريات</h2><button class="icon-btn" data-act="close-layer" aria-label="إغلاق">'+ui('close')+'</button></div><div class="dbody">'+
     (items.length?rows+form:'<p class="empty">السلة فارغة. أضف منتجات من المتجر.</p>')+'</div>'+
-    (items.length?'<div class="dfoot"><div class="tot"><span>الإجمالي</span><b>'+money(total)+'</b></div>'+send+'<p class="note">الدفع عند الاستلام. نؤكد الطلب معك على واتساب.</p></div>':'')+'</aside>';
+    (items.length?'<div class="dfoot"><div class="tot"><span>الإجمالي</span><b>'+money(total)+'</b></div>'+send+'<p class="note">الدفع عند الاستلام. سنتصل بك لتأكيد الطلب.</p></div>':'')+'</aside>';
 }
 
 /* admin */
@@ -203,7 +243,7 @@ function adminHTML(){
       return '<div class="prow"><div class="th">'+(p.img?'<img src="'+esc(p.img)+'" alt="">':ico(cat?cat.icon:'other'))+'</div><div><b>'+esc(p.name)+(p.stock?'':'<span class="tag bad">نفد</span>')+'</b><small>'+money(p.price)+' · '+esc(cat?cat.name:'')+'</small></div><div class="acts"><button class="icon-btn" data-act="edit-p" data-id="'+esc(p.id)+'" aria-label="تعديل المنتج">'+ui('edit')+'</button>'+del+'</div></div>';
     }).join('')||'<p class="empty">لا توجد منتجات بعد.</p>';
   }else if(tab==='settings'){
-    body=(!waNum(s.whatsapp)?'<div class="warn">أدخل رقم واتساب المتجر ليصلك الطلب من السلة.</div>':'')+
+    body=((!s.firebaseApiKey||!s.firebaseProjectId)?'<div class="warn">لم تُربط قاعدة الطلبات بعد. أدخل بيانات Firebase في آخر هذه الصفحة ليصلك الطلب في صفحة الطلبات.</div>':'')+
       '<div class="row2">'+field('اسم المتجر','settings.name',s.name)+field('وصف قصير','settings.tagline',s.tagline)+'</div>'+
       field('شريط الإعلان العلوي','settings.announce',s.announce,'','اتركه فارغًا لإخفائه')+
       field('عنوان الصفحة الرئيسية','settings.heroTitle',s.heroTitle)+
@@ -214,6 +254,8 @@ function adminHTML(){
       field('الأجهزة المدعومة (افصل بينها بـ ·)','settings.brands',s.brands)+
       '<div class="row2">'+field('رابط فيسبوك','settings.facebook',s.facebook,'','https://')+field('رابط إنستغرام','settings.instagram',s.instagram,'','https://')+'</div>'+
       field('رابط تيك توك','settings.tiktok',s.tiktok,'','https://')+
+      '<b>قاعدة بيانات الطلبات (Firebase)</b>'+
+      '<div class="row2">'+field('Project ID','settings.firebaseProjectId',s.firebaseProjectId,'','my-store-12345','من إعدادات مشروع Firebase')+field('Web API Key','settings.firebaseApiKey',s.firebaseApiKey,'','AIza...','مفتاح تطبيق الويب، وهو ليس سرًا')+'</div>'+
       '<b>مميزات المتجر</b>'+c.features.map(function(f,i){return '<div class="row2">'+field('العنوان','features.'+i+'.t',f.t)+field('الوصف','features.'+i+'.d',f.d)+'</div>'}).join('')+
       '<b>أسئلة شائعة</b>'+(c.faq||[]).map(function(f,i){return '<div class="row2">'+field('السؤال','faq.'+i+'.q',f.q)+field('الجواب','faq.'+i+'.a',f.a,'area')+'</div>'}).join('');
   }else if(tab==='publish'){
@@ -295,7 +337,7 @@ function renderLayer(){
   var el=$('#layer');
   if(!layer){el.innerHTML='';document.body.style.overflow='';return}
   document.body.style.overflow='hidden';
-  el.innerHTML=layer==='cart'?cartHTML():(layer==='admin'?adminHTML():(layer==='qv'?qvHTML():formHTML()));
+  el.innerHTML=layer==='cart'?cartHTML():(layer==='done'?doneHTML():(layer==='admin'?adminHTML():(layer==='qv'?qvHTML():formHTML())));
 }
 function setLayer(l){layer=l;renderLayer()}
 function closeLayer(){layer=null;editing=null;renderLayer();render()}
@@ -326,6 +368,7 @@ document.addEventListener('click',function(e){
   if(a==='add'){cart[id]=(cart[id]||0)+1;saveCart();render();toast('تمت الإضافة إلى السلة');return}
   if(a==='qv'){qvId=id;setLayer('qv');return}
   if(a==='qv-add'){cart[id]=(cart[id]||0)+1;saveCart();layer=null;renderLayer();render();toast('تمت الإضافة إلى السلة');return}
+  if(a==='place-order'){placeOrder();return}
   if(a==='cart-open'){setLayer('cart');return}
   if(a==='close-layer'){closeLayer();return}
   if(a==='inc'){cart[id]=(cart[id]||0)+1;saveCart();renderLayer();return}

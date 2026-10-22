@@ -258,3 +258,14 @@ main{background:radial-gradient(900px 420px at 88% -8%,var(--tint-a),transparent
 .steps li::before{content:counter(s);width:34px;height:34px;border-radius:10px;background:var(--orange);color:#fff;display:grid;place-items:center;font-weight:700;margin-bottom:6px}
 .steps b{font-size:17px}
 .steps span{color:var(--muted)}
+
+/* order confirmation */
+.hp{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
+.panel.done{width:min(440px,100%)}
+.doneb{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:32px 24px}
+.doneb h2{font-family:var(--f-display);font-weight:400;font-size:30px}
+.doneb p{color:var(--muted)}
+.doneic{width:64px;height:64px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center}
+.doneic .ui{width:34px;height:34px}
+.dno{font-size:24px;letter-spacing:.04em;direction:ltr;color:var(--blue);font-variant-numeric:tabular-nums}
+.doneb .btn{margin-top:12px}

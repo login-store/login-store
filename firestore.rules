@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function validOrder(d) {
+      return d.keys().hasOnly(['orderNo','createdAt','name','phone','address','note','items','total','status'])
+        && d.keys().hasAll(['orderNo','createdAt','name','phone','address','items','total','status'])
+        && d.orderNo is string && d.orderNo.size() <= 40
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 100
+        && d.phone is string && d.phone.size() >= 8 && d.phone.size() <= 20
+        && d.address is string && d.address.size() >= 5 && d.address.size() <= 400
+        && (!('note' in d) || (d.note is string && d.note.size() <= 400))
+        && d.items is list && d.items.size() >= 1 && d.items.size() <= 50
+        && d.total is number && d.total >= 0 && d.total < 1000000
+        && d.status == 'new'
+        && d.createdAt is timestamp;
+    }
+
+    match /orders/{id} {
+      // أي عميل يستطيع إنشاء طلب صحيح فقط، ولا يستطيع قراءته أو تعديله
+      allow create: if validOrder(request.resource.data);
+      // المالك فقط يقرأ ويعدّل ويحذف. غيّر ADMIN_EMAIL@gmail.com إلى بريدك
+      allow read, update, delete: if request.auth != null
+        && request.auth.token.email == 'elmomtaz419@gmail.com';
+    }
+  }
+}
