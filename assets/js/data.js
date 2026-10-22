@@ -14,7 +14,9 @@ window.STORE_DATA = {
     "brands": "iPhone · Samsung · Xiaomi · Oppo · Realme · Honor · Infinix",
     "facebook": "",
     "instagram": "",
-    "tiktok": ""
+    "tiktok": "",
+    "firebaseProjectId": "login-store-3f",
+    "firebaseApiKey": "AIzaSyD4x9RJprEnA2Zkg3QbFC1cyh6STbAKMuA"
   },
   "features": [
     {
