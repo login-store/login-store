@@ -36,28 +36,51 @@ const absUrl = (u) => (!u || /^data:/i.test(u)) ? null : (/^https?:\/\//i.test(u
 const cats = D.categories || [];
 
 /* صور المنتجات المرفوعة من لوحة التحكم تُحفظ داخل data.js كنص base64.
-   نستخرجها إلى ملفات حقيقية حتى يستطيع جوجل قراءتها في البيانات المنظّمة. */
+   نستخرجها إلى ملفات حقيقية (اسمها يحتوي بصمة المحتوى) ونستبدل بها النص داخل data.js نفسه،
+   فيبقى data.js خفيفًا وتستطيع جوجل قراءة الصور في البيانات المنظّمة. */
+const crypto = require('crypto');
 const IMG_DIR = 'assets/img/products';
 const IMG = {};
+const IMGS = {};
 const keep = new Set();
+let rewrote = false;
+const extract = (u, id) => {
+  const m = /^data:image\/(png|jpe?g|webp|gif);base64,(.+)$/i.exec(u || '');
+  if (!m) return null;
+  const ext = m[1].toLowerCase().replace('jpeg', 'jpg');
+  const buf = Buffer.from(m[2], 'base64');
+  const h = crypto.createHash('sha1').update(buf).digest('hex').slice(0, 10);
+  const rel = `${IMG_DIR}/${String(id).replace(/[^a-z0-9_-]/gi, '')}-${h}.${ext}`;
+  const abs = path.join(ROOT, rel);
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  if (!fs.existsSync(abs)) fs.writeFileSync(abs, buf);
+  return rel;
+};
 D.products.forEach((p) => {
-  const m = /^data:image\/(png|jpe?g|webp|gif);base64,(.+)$/i.exec(p.img || '');
-  if (m) {
-    const ext = m[1].toLowerCase().replace('jpeg', 'jpg');
-    const rel = `${IMG_DIR}/${String(p.id).replace(/[^a-z0-9_-]/gi, '')}.${ext}`;
-    const abs = path.join(ROOT, rel);
-    const buf = Buffer.from(m[2], 'base64');
-    fs.mkdirSync(path.dirname(abs), { recursive: true });
-    if (!fs.existsSync(abs) || !fs.readFileSync(abs).equals(buf)) fs.writeFileSync(abs, buf);
-    IMG[p.id] = rel;
-    keep.add(path.basename(rel));
-  } else {
-    IMG[p.id] = p.img || null;
-  }
+  const fix = (u) => { const rel = extract(u, p.id); if (rel) { rewrote = true; return rel; } return u || ''; };
+  p.img = fix(p.img);
+  if (Array.isArray(p.imgs)) p.imgs = p.imgs.map(fix).filter(Boolean);
+  IMGS[p.id] = [p.img].concat(Array.isArray(p.imgs) ? p.imgs : []).filter(Boolean);
+  IMG[p.id] = IMGS[p.id][0] || null;
+  IMGS[p.id].forEach((u) => { if (u.startsWith(IMG_DIR + '/')) keep.add(path.basename(u)); });
 });
+if (rewrote) {
+  write('assets/js/data.js', '/* بيانات متجر Login Store. يُنشأ هذا الملف تلقائيًا من وضع التعديل (index.html?admin). */\nwindow.STORE_DATA = ' + JSON.stringify(D, null, 2) + ';\n');
+}
 try {
   fs.readdirSync(path.join(ROOT, IMG_DIR)).forEach((f) => { if (!keep.has(f)) fs.unlinkSync(path.join(ROOT, IMG_DIR, f)); });
 } catch (e) { /* المجلد غير موجود: لا منتجات بصور */ }
+
+/* اسم ملف صفحة كل منتج */
+const PFILE = {};
+const usedSlug = new Set();
+D.products.forEach((p, i) => {
+  const base = String(p.id).toLowerCase().replace(/[^a-z0-9_-]/g, '') || `p${i + 1}`;
+  let u = base, n = 2;
+  while (usedSlug.has(u)) u = `${base}-${n++}`;
+  usedSlug.add(u);
+  PFILE[p.id] = `product-${u}.html`;
+});
 const inStock = D.products.filter((p) => p.stock);
 const catNames = cats.map((c) => c.name);
 const top3 = joinAr(catNames.slice(0, 3));
@@ -75,6 +98,14 @@ const crumb = (title, file) => ({
     { '@type': 'ListItem', position: 2, name: title, item: SITE + file },
   ],
 });
+const crumb3 = (cat, p) => ({
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'الرئيسية', item: SITE },
+    { '@type': 'ListItem', position: 2, name: 'المنتجات', item: SITE + 'shop.html' },
+    { '@type': 'ListItem', position: 3, name: p.name, item: SITE + PFILE[p.id] },
+  ],
+});
 const storeLd = () => {
   const o = { '@type': 'Store', '@id': SITE + '#store', name, url: SITE, logo, image: og, description: cut(S.heroText || S.tagline, 200), currenciesAccepted: 'EGP', paymentAccepted: 'Cash' };
   if (wa || S.phone) o.telephone = wa ? '+' + wa : S.phone;
@@ -85,18 +116,20 @@ const storeLd = () => {
   return o;
 };
 const productLd = (p) => {
-  const o = { '@type': 'Product', name: p.name, category: (cats.find((c) => c.id === p.cat) || {}).name, brand: { '@type': 'Brand', name }, offers: { '@type': 'Offer', url: SITE + 'shop.html', price: String(Number(p.price) || 0), priceCurrency: 'EGP', itemCondition: 'https://schema.org/NewCondition', availability: p.stock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock' } };
-  if (p.desc) o.description = p.desc;
+  const o = { '@type': 'Product', name: p.name, category: (cats.find((c) => c.id === p.cat) || {}).name, brand: { '@type': 'Brand', name }, offers: { '@type': 'Offer', url: SITE + PFILE[p.id], price: String(Number(p.price) || 0), priceCurrency: 'EGP', itemCondition: 'https://schema.org/NewCondition', availability: p.stock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock' } };
+  const dsc = p.long ? cut(p.long, 500) : p.desc;
+  if (dsc) o.description = dsc;
   o.sku = String(p.id);
-  const img = absUrl(IMG[p.id]);
-  if (img) o.image = img;
+  o.url = SITE + PFILE[p.id];
+  const imgs = (IMGS[p.id] || []).map(absUrl).filter(Boolean);
+  if (imgs.length) o.image = imgs.length === 1 ? imgs[0] : imgs;
   return o;
 };
 
 /* ---------- أجزاء مشتركة للمحتوى الثابت ---------- */
 const nav = `<header><a href="index.html">${esc(name)}</a><nav aria-label="القائمة الرئيسية"><a href="index.html">الرئيسية</a> <a href="shop.html">المنتجات</a> <a href="why.html">لماذا نحن</a> <a href="faq.html">أسئلة شائعة</a> <a href="contact.html">تواصل معنا</a></nav></header>`;
 const foot = `<footer><p>${esc(name)} - ${esc(S.tagline)}</p><p>© ${new Date().getFullYear()} ${esc(name)}. جميع الحقوق محفوظة.</p></footer>`;
-const productLi = (p) => `<li>${IMG[p.id] ? `<img src="${esc(IMG[p.id])}" alt="${esc(p.name)}" width="320" height="320" loading="lazy">` : ''}<h3>${esc(p.name)}</h3>${p.desc ? `<p>${esc(p.desc)}</p>` : ''}<p>السعر: ${money(p.price)}${Number(p.old) > Number(p.price) ? ` (قبل الخصم ${money(p.old)})` : ''}</p><p>${p.stock ? 'متوفر' : 'غير متوفر حاليًا'}</p></li>`;
+const productLi = (p) => `<li>${IMG[p.id] ? `<img src="${esc(IMG[p.id])}" alt="${esc(p.name)}" width="320" height="320" loading="lazy">` : ''}<h3><a href="${PFILE[p.id]}">${esc(p.name)}</a></h3>${p.desc ? `<p>${esc(p.desc)}</p>` : ''}<p>السعر: ${money(p.price)}${Number(p.old) > Number(p.price) ? ` (قبل الخصم ${money(p.old)})` : ''}</p><p>${p.stock ? 'متوفر' : 'غير متوفر حاليًا'}</p></li>`;
 const features = () => (D.features || []).map((f) => `<li><h3>${esc(f.t)}</h3><p>${esc(f.d)}</p></li>`).join('');
 
 /* ---------- الصفحات ---------- */
@@ -157,6 +190,42 @@ pages.push({
   ld: [crumb('تواصل معنا', 'contact.html'), contactLd],
 });
 
+
+/* ---------- صفحة مستقلة لكل منتج ---------- */
+const paras = (t) => String(t || '').split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean).map((x) => `<p>${esc(x).replace(/\n/g, '<br>')}</p>`).join('');
+const productBody = (p) => {
+  const cat = cats.find((c) => c.id === p.cat);
+  const imgs = IMGS[p.id] || [];
+  const specs = (p.specs || []).filter((x) => x && x.k);
+  const rel = D.products.filter((x) => x.cat === p.cat && x.id !== p.id).slice(0, 4);
+  return `${nav}<main><nav aria-label="مسار الصفحة"><a href="index.html">الرئيسية</a> / <a href="shop.html">المنتجات</a>${cat ? ` / <a href="shop.html">${esc(cat.name)}</a>` : ''} / ${esc(p.name)}</nav>
+<article><h1>${esc(p.name)}</h1>${imgs.map((u, i) => `<img src="${esc(u)}" alt="${esc(p.name)}${imgs.length > 1 ? ' - صورة ' + (i + 1) : ''}" width="640" height="640"${i ? ' loading="lazy"' : ''}>`).join('')}
+<p>السعر: ${money(p.price)}${Number(p.old) > Number(p.price) ? ` (قبل الخصم ${money(p.old)})` : ''}</p><p>${p.stock ? 'متوفر' : 'غير متوفر حاليًا'}</p>
+${p.desc ? `<p>${esc(p.desc)}</p>` : ''}${p.long ? `<h2>وصف المنتج</h2>${paras(p.long)}` : ''}${specs.length ? `<h2>المواصفات</h2><ul>${specs.map((x) => `<li>${esc(x.k)}${x.v ? ': ' + esc(x.v) : ''}</li>`).join('')}</ul>` : ''}</article>
+${rel.length ? `<h2>منتجات مشابهة</h2><ul>${rel.map((x) => `<li><a href="${PFILE[x.id]}">${esc(x.name)}</a> - ${money(x.price)}</li>`).join('')}</ul>` : ''}</main>${foot}`;
+};
+D.products.forEach((p) => {
+  const cat = cats.find((c) => c.id === p.cat);
+  const img = absUrl(IMG[p.id]);
+  pages.push({
+    file: PFILE[p.id], page: 'product', pid: p.id, url: SITE + PFILE[p.id], ogImage: img, ogType: 'product',
+    title: cut(`${p.name} | ${cat ? cat.name + ' | ' : ''}${name}`, 68),
+    desc: cut(`${p.name}${p.desc ? ' - ' + String(p.desc).replace(/[.。\s]+$/, '') : ''}. السعر ${money(p.price)}. ${p.stock ? 'متوفر' : 'غير متوفر حاليًا'} في ${name}، والدفع عند الاستلام.`, 155),
+    body: productBody(p),
+    ld: [crumb3(cat, p), productLd(p)],
+  });
+});
+pages.push({
+  file: 'product.html', page: 'product', url: SITE + 'product.html', noindex: true,
+  title: `المنتج | ${name}`, desc: `تفاصيل المنتج في ${name}.`,
+  body: `${nav}<main><h1>المنتج</h1></main>${foot}`, ld: [],
+});
+pages.push({
+  file: 'account.html', page: 'account', url: SITE + 'account.html', noindex: true,
+  title: `حسابي | ${name}`, desc: `حساب العميل في ${name}.`,
+  body: `${nav}<main><h1>حسابي</h1></main>${foot}`, ld: [],
+});
+
 /* ---------- كتابة الملفات ---------- */
 const ldScript = (items) => `<script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@graph': items }).replace(/</g, '\\u003c')}</script>`;
 const FONTS = 'https://fonts.googleapis.com/css2?family=Lalezar&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap';
@@ -169,22 +238,22 @@ pages.forEach((p) => {
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>${esc(p.title)}</title>
   <meta name="description" content="${esc(p.desc)}">
-  <link rel="canonical" href="${esc(p.url)}">
-  <meta name="robots" content="index, follow, max-image-preview:large">
+  ${p.noindex ? '' : `<link rel="canonical" href="${esc(p.url)}">`}
+  <meta name="robots" content="${p.noindex ? 'noindex, follow' : 'index, follow, max-image-preview:large'}">
   <meta name="theme-color" content="#0B5FD0">
-  <meta property="og:type" content="website">
+  <meta property="og:type" content="${p.ogType || 'website'}">
   <meta property="og:site_name" content="${esc(name)}">
   <meta property="og:title" content="${esc(p.title)}">
   <meta property="og:description" content="${esc(p.desc)}">
   <meta property="og:url" content="${esc(p.url)}">
-  <meta property="og:image" content="${og}">
+  <meta property="og:image" content="${p.ogImage || og}">${p.ogImage ? '' : `
   <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
+  <meta property="og:image:height" content="630">`}
   <meta property="og:locale" content="ar_AR">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${esc(p.title)}">
   <meta name="twitter:description" content="${esc(p.desc)}">
-  <meta name="twitter:image" content="${og}">
+  <meta name="twitter:image" content="${p.ogImage || og}">
   <link rel="icon" href="assets/img/logo-icon.webp" type="image/webp">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -192,12 +261,13 @@ pages.forEach((p) => {
   <link rel="stylesheet" href="assets/css/style.css">
   ${ldScript(p.ld)}
 </head>
-<body data-page="${p.page}">
+<body data-page="${p.page}"${p.pid != null ? ` data-pid="${esc(p.pid)}"` : ''}>
   <div id="app">${p.body}</div>
   <div id="layer"></div>
   <div id="toast" hidden role="status"></div>
   <noscript><p style="padding:24px;text-align:center">يرجى تفعيل JavaScript لإتمام الطلب من المتجر.</p></noscript>
   <script src="assets/js/data.js"></script>
+  <script src="assets/js/account.js"></script>
   <script src="assets/js/app.js"></script>
 </body>
 </html>
@@ -205,11 +275,14 @@ pages.forEach((p) => {
   write(p.file, html);
 });
 
+const made = new Set(pages.map((p) => p.file));
+fs.readdirSync(ROOT).forEach((f) => { if (/^product-.*\.html$/.test(f) && !made.has(f)) fs.unlinkSync(path.join(ROOT, f)); });
+
 const today = new Date().toISOString().slice(0, 10);
-const prio = { home: ['1.0', 'weekly'], shop: ['0.9', 'weekly'], why: ['0.6', 'monthly'], faq: ['0.6', 'monthly'], contact: ['0.7', 'monthly'] };
+const prio = { home: ['1.0', 'weekly'], shop: ['0.9', 'weekly'], why: ['0.6', 'monthly'], faq: ['0.6', 'monthly'], contact: ['0.7', 'monthly'], product: ['0.7', 'weekly'] };
 write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${pages.map((p) => `  <url>
+${pages.filter((p) => !p.noindex).map((p) => `  <url>
     <loc>${esc(p.url)}</loc>
     <lastmod>${today}</lastmod>
     <changefreq>${prio[p.page][1]}</changefreq>
@@ -219,4 +292,4 @@ ${pages.map((p) => `  <url>
 `);
 write('robots.txt', `User-agent: *\nAllow: /\n\nSitemap: ${SITE}sitemap.xml\n`);
 
-console.log(`تم بناء ${pages.length} صفحات و sitemap.xml (${D.products.length} منتج) للموقع ${SITE}`);
+console.log(`تم بناء ${pages.length} صفحة و sitemap.xml (${D.products.length} منتج) للموقع ${SITE}`);
