@@ -342,3 +342,13 @@ a.media{text-decoration:none;color:inherit}
 .gi{display:grid;gap:6px;justify-items:center;border:1px solid var(--line);border-radius:12px;padding:8px}
 .gi img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px}
 .gm{font-size:12px;font-weight:700;color:var(--ok)}
+
+/* ===== admin: bulk import ===== */
+.impstats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.impstats div{background:var(--surface-2);border-radius:12px;padding:10px;text-align:center}
+.impstats b{display:block;font-size:24px}
+.impstats span{font-size:13px;color:var(--muted)}
+.imptbl{max-height:280px;overflow:auto;border:1px solid var(--line);border-radius:12px}
+.imptbl table{width:100%;border-collapse:collapse;font-size:14px}
+.imptbl th,.imptbl td{padding:7px 10px;text-align:start;border-bottom:1px solid var(--line)}
+.imptbl th{position:sticky;top:0;background:var(--surface-2);color:var(--muted)}
